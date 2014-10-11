@@ -7,6 +7,7 @@ use strict;
 
 use lib '../../lib/';
 use Multigate::Config qw( getconf readconfig );
+use Multigate::DB;
 use DBI;
 
 #
@@ -14,11 +15,7 @@ use DBI;
 #
 
 readconfig("../../multi.conf");
-my $db_passwd = getconf('db_passwd');
-my $db_user   = getconf('db_user');
-my $db_name   = getconf('db_name');
-
-my $dbh = DBI->connect( "DBI:mysql:$db_name", $db_user, $db_passwd );
+my $dbh = get_dbh();
 
 die "Cannot access database" unless defined $dbh;
 
