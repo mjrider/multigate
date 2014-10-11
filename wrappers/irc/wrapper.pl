@@ -38,6 +38,7 @@ my $irc_oper     = undef;
 my $irc_operpass = undef;
 my %channels     = ();
 my %sendqueue = ();    # $destination => @lines
+my %opqueue = ();
 
 
 my $quitmessagefile = "wrappers/irc/quitmessages.txt";
@@ -49,10 +50,6 @@ my $logdir          = "logs";
 
 #make a connection to the user-database
 Multigate::Users::init_users_module();
-
-#temporary:
-Multigate::Debug::setdebug('irc');
-
 
 sub irc_start {
 	my ($kernel, $heap) = @_[KERNEL ,HEAP];
@@ -131,6 +128,7 @@ sub irc_start {
 
 	debug( 'irc', "scheduling irc_send_tick" );
 	$kernel->delay(  'irc_send_tick', 0.1);
+	$kernel->delay(  'irc_op_tick', 0.2);
 }
 
 
@@ -350,6 +348,20 @@ sub irc_send_tick {
 	$kernel->delay(  'irc_send_tick', 0.1);
 }
 
+sub irc_op_tick {
+	my ($kernel,$heap) = @_[KERNEL,HEAP];
+
+	foreach my $destination ( keys %opqueue ) {
+		my @targets = splice($opqueue{$destination}, 0, 3);
+		my $mode = '+' . ('o' x scalar(@targets));
+		$irc->yield( 'mode' => $destination => $mode => join (' ', @targets )  );
+		unless ( @{ $opqueue{$destination} } ) {
+			delete $opqueue{$destination};    #ready with this destination
+		}
+	}
+	$kernel->delay(  'irc_op_tick', 0.2);
+}
+
 sub adduser {
 	my ( $channel, $nick, $userhost ) = @_;
 	$channel = lc($channel);
@@ -365,8 +377,7 @@ sub adduser {
 
 		#this person deserves operator status!
 		debug( 'irc', "This $nick $userhost ($id) deserves operator status on $channel" );
-		$irc->yield( 'mode' => $channel => '+o' => $nick );
-
+		push @{ $opqueue{$channel} }, $nick;
 	} else {
 		#We do not like this person :)
 		debug( 'irc', "This $nick $userhost ($id) does not deserve operator status on $channel" );
@@ -432,6 +443,7 @@ POE::Session->create(
 		irc_chan_mode    => 'irc_chan_mode',
 		irc_chan_sync    => 'irc_chan_sync',
 		irc_send_tick    => 'irc_send_tick',
+		irc_op_tick      => 'irc_op_tick',
 	}
 	]
 );
