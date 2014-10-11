@@ -27,9 +27,12 @@ use vars qw( @ISA @EXPORT $VERSION );
 use Exporter;
 use DBI;
 use FileHandle;
+use Data::Dumper;
+
 
 use lib './lib';
 use Multigate::Config qw( getconf readconfig hasconf);
+use Multigate::DB qw( get_dbh );
 
 $VERSION = '2';
 @ISA     = qw( Exporter );
@@ -47,20 +50,6 @@ $VERSION = '2';
   authenticate_user
   init_users_module cleanup_users_module );
 
-# returns a working $dbh, we hope
-sub get_dbh {
-    my $password;
-    if (hasconf('db_passwd')) {
-        $password = getconf('db_passwd');
-    }
-    my $db_user  = getconf('db_user');
-    my $database = getconf('db_name');
-    my $dbh      = DBI->connect_cached( 'DBI:mysql:' . $database,
-        $db_user, $password, { RaiseError => 0, AutoCommit => 1 } );
-    return 0 unless defined $dbh;
-    return $dbh;
-}
-
 #
 # Call this before any of the others..
 # Returns errorstring on failure, 0 on succes...
@@ -69,13 +58,7 @@ sub init_users_module {
     my $configroot = $ENV{MULTI_ROOT};
     unless ($configroot) { $configroot = "."; }
     readconfig("$configroot/multi.conf");    #allowed this way?
-    my $password;
 
-    if (hasconf('db_passwd')) {
-        $password = getconf('db_passwd');
-    }
-    my $db_user  = getconf('db_user');
-    my $database = getconf('db_name');
     my $dbh      = get_dbh();
     return DBI::errstr unless defined $dbh;
     return 0;
@@ -137,6 +120,7 @@ WHERE
   address = ? and
   address.username = user.username
 EOT
+    print Dumper(@res);
     return ( 'pietjepuk', 0 ) if ( $#res == -1 );
     return @res[ 0 .. 1 ];
 }
