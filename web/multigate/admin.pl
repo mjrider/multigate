@@ -21,6 +21,7 @@ use FileHandle;
 use lib '../../lib';
 use Multigate::Config qw( getconf readconfig );
 use Multigate::Users;
+use Multigate::DB;
 
 #
 # ---------------------------------------------------------
@@ -70,11 +71,7 @@ $user = $r->user;
 $fh = new FileHandle;
 
 readconfig("../../multi.conf");    #allowed this way?
-my $password = getconf('db_passwd');
-my $db_user  = getconf('db_user');
-my $database = getconf('db_name');
-$dbh = DBI->connect( 'DBI:mysql:' . $database,
-    $db_user, $password, { RaiseError => 0, AutoCommit => 1 } );
+$dbh = get_dbh();
 
 if ( !defined $dbh ) {
     print STDERR DBI::errstr;
